@@ -16,6 +16,10 @@ const DEFAULT_INSTRUCTIONS =
   "обещания или договорённости. Если данных не хватает — задай короткий уточняющий вопрос. " +
   "Если собеседник прямо спросит, сообщи, что это автоматический помощник.";
 
+function looksLikeTelegramToken(value) {
+  return typeof value === "string" && /^\d{5,}:[A-Za-z0-9_-]{25,}$/.test(value);
+}
+
 function makePromptReader() {
   return readline.createInterface({ input: stdin, output: stdout });
 }
@@ -108,6 +112,9 @@ function validateConfig(config) {
   if (typeof config.model !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/.test(config.model)) {
     throw new Error("Некорректное имя модели Ollama.");
   }
+  if (looksLikeTelegramToken(config.model)) {
+    throw new Error("В настройках токен Telegram сохранён вместо модели Ollama. Запустите bash start.sh --reconfigure.");
+  }
   if (typeof config.ollamaUrl !== "string" || !/^https?:\/\//.test(config.ollamaUrl)) {
     throw new Error("Некорректный адрес Ollama.");
   }
@@ -134,20 +141,27 @@ export async function loadOrCreateConfig(args, validateTelegramToken) {
   stdout.write("\nПервый запуск. Токен вводится скрыто и сохраняется только на этой машине.\n");
   stdout.write("Создайте бота через @BotFather и включите для него Business Mode.\n\n");
 
+  const botToken = await askSecret("Токен бота от @BotFather");
+  if (!botToken) throw new Error("Токен не может быть пустым.");
+
+  const savedModel = existing?.model;
+  const defaultModel =
+    forceReconfigure || looksLikeTelegramToken(savedModel) ? DEFAULT_MODEL : savedModel ?? DEFAULT_MODEL;
   const model = await ask(
     "Модель Ollama (0.5B — самая лёгкая; ответы могут быть проще)",
-    existing?.model ?? DEFAULT_MODEL,
+    defaultModel,
   );
   if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/.test(model)) {
     throw new Error("Имя модели может содержать только латинские буквы, цифры и . _ : / -");
+  }
+  if (looksLikeTelegramToken(model)) {
+    throw new Error("Похоже, сюда введён токен Telegram, а не имя модели. Оставьте qwen2.5:0.5b или выберите модель Ollama.");
   }
 
   const instructions = await ask(
     "Как ИИ должен отвечать (Enter — настройки по умолчанию)",
     existing?.instructions ?? DEFAULT_INSTRUCTIONS,
   );
-  const botToken = await askSecret("Токен бота от @BotFather");
-  if (!botToken) throw new Error("Токен не может быть пустым.");
 
   const config = {
     botToken,
