@@ -92,7 +92,7 @@ async function handleBusinessMessage(token, config, state, message) {
 
   try {
     const reply = await generateReply(config, context, incomingText);
-    await sendBusinessReply(token, connectionId, chatId, reply);
+    await sendBusinessReply(token, connectionId, chatId, reply, message.message_id);
     context.push(
       { role: "user", content: incomingText },
       { role: "assistant", content: reply },

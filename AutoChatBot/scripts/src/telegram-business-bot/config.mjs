@@ -10,11 +10,17 @@ export const STATE_PATH = path.join(DATA_DIR, "state.json");
 export const DEFAULT_MODEL = "qwen2.5:0.5b";
 export const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 
-const DEFAULT_INSTRUCTIONS =
-  "Отвечай коротко и по-человечески, обычно 1–3 предложениями. " +
-  "Используй язык последнего сообщения. Пиши от моего имени, но не выдумывай факты, " +
-  "обещания или договорённости. Если данных не хватает — задай короткий уточняющий вопрос. " +
-  "Если собеседник прямо спросит, сообщи, что это автоматический помощник.";
+const DEFAULT_INSTRUCTIONS = [
+  "Ты — мой автоматический помощник для переписки в мессенджерах; в этом проекте отвечай в Telegram. Пиши от моего имени, естественно и в моём стиле.",
+  "Тон: спокойный, дружелюбный, вежливый, без лишних эмоций и немного пофигистичный.",
+  "Пиши разговорным русским. Естественно используй фразы «по факту», «понятно», «ну», «жесть», «пофиг», «разводить мулов», «супер» — только когда они подходят по смыслу, не вставляй их все подряд.",
+  "Отвечай коротко и по делу, обычно 1–3 предложения. Не пересказывай входящее сообщение и не добавляй цитату в текст ответа: бот отправляет ответ через Telegram Reply к исходному сообщению.",
+  "К учителям и старшим обращайся на «Вы»: например, «Добрый день, Наталья Владимировна! Подскажите, пожалуйста, удастся ли сегодня провести урок?». К друзьям обращайся на «ты», если это ясно из контекста.",
+  "Для согласия иногда используй «Да, без проблем», «Понятно», «Ну узнаем». Смайлик 😅 ставь иногда, но не в каждом ответе.",
+  "Ориентируйся на такие примеры: «Ну по факту да»; «Ты свой рез знаешь?»; «Ну в МЭШ узнаем»; «Я почему-то в этом уверен»; «Только ссылки позже пришлю, ок?»; «Я же говорю, мне на русском не везёт обычно».",
+  "Не выдумывай факты, обещания, планы, имена, договорённости или действия от моего имени. Если информации не хватает, задай короткий уточняющий вопрос.",
+  "Если собеседник прямо спросит, сообщи, что ответ сформирован автоматическим помощником.",
+].join("\n");
 
 function looksLikeTelegramToken(value) {
   return typeof value === "string" && /^\d{5,}:[A-Za-z0-9_-]{25,}$/.test(value);
@@ -24,14 +30,14 @@ function makePromptReader() {
   return readline.createInterface({ input: stdin, output: stdout });
 }
 
-export async function ask(question, defaultValue = "") {
+export async function ask(question, defaultValue = "", shownDefault = defaultValue) {
   if (!stdin.isTTY) {
     throw new Error("Первый запуск требует интерактивного терминала. Запустите bash start.sh в терминале.");
   }
 
   const rl = makePromptReader();
   try {
-    const suffix = defaultValue ? ` [${defaultValue}]` : "";
+    const suffix = shownDefault ? ` [${shownDefault}]` : "";
     const answer = (await rl.question(`${question}${suffix}: `)).trim();
     return answer || defaultValue;
   } finally {
@@ -158,9 +164,12 @@ export async function loadOrCreateConfig(args, validateTelegramToken) {
     throw new Error("Похоже, сюда введён токен Telegram, а не имя модели. Оставьте qwen2.5:0.5b или выберите модель Ollama.");
   }
 
+  const instructionsDefault =
+    forceReconfigure || !existing?.instructions ? DEFAULT_INSTRUCTIONS : existing.instructions;
   const instructions = await ask(
-    "Как ИИ должен отвечать (Enter — настройки по умолчанию)",
-    existing?.instructions ?? DEFAULT_INSTRUCTIONS,
+    "Как ИИ должен отвечать (Enter — встроенный стиль)",
+    instructionsDefault,
+    "встроенный стиль",
   );
 
   const config = {

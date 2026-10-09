@@ -58,13 +58,19 @@ export async function getUpdates(token, offset, timeout = 30) {
   return callTelegram(token, "getUpdates", parameters);
 }
 
-export async function sendBusinessReply(token, connectionId, chatId, text) {
+export async function sendBusinessReply(token, connectionId, chatId, text, replyToMessageId) {
   const chunks = splitForTelegram(text);
-  for (const chunk of chunks) {
-    await callTelegram(token, "sendMessage", {
+  for (const [index, chunk] of chunks.entries()) {
+    const parameters = {
       business_connection_id: connectionId,
       chat_id: chatId,
       text: chunk,
+    };
+    if (index === 0 && Number.isInteger(replyToMessageId)) {
+      parameters.reply_parameters = { message_id: replyToMessageId };
+    }
+    await callTelegram(token, "sendMessage", {
+      ...parameters,
     });
   }
 }
