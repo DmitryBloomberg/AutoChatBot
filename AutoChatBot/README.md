@@ -4,7 +4,7 @@
 
 ## Что понадобится
 
-- Node.js 20 или новее.
+- Node.js 18.17 или новее (на Node.js 22/24 запуск предпочтительнее из соображений безопасности).
 - Ollama, установленная с [ollama.com/download](https://ollama.com/download).
 - Токен бота от [@BotFather](https://t.me/BotFather).
 - Telegram Business и подключение бота в настройках Telegram.
